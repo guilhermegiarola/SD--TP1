@@ -1,17 +1,17 @@
 import socket
 
-ip = ''
-porta = 7002
+HOST = ''              # Endereco IP do Servidor
+PORT = 7002            # Porta que o Servidor esta
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-sock.bind((ip, porta))
-sock.listen(1)
+tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+orig = (HOST, PORT)
 
-conn, addr = sock.accept()
-arq = open('receivedArchive.tar.gz', 'wb')
+tcp.bind(orig)
+tcp.listen(1)
 
 while True:
-    dados = conn.recv(1024)
-    arq.write(dados)
-
-arq.close()
+    con, cliente = tcp.accept()
+    while True:
+        msg = con.recv(1024)
+        if not msg: break
+    con.close()

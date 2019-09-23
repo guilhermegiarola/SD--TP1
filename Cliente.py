@@ -7,19 +7,18 @@ class Cliente:
     ip = "127.0.0.1"
     portaTCP = 7000
     portaUDP = 7002
-    timeout = 0.1 #Segundos
+    timeout = 0.7 #Segundos
     qnt_pacotes = 10
+    qnt_pacotes_retornados = 0
+    qnt_pacotes_perdidos = 0
+    somatorio_rtt = 0
+    somatorio_vazao = 0
 
     def __init__(self):
-        self.sockUDP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sockUDP.connect((self.ip, self.portaUDP))
-        self.sockTCP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sockTCP.settimeout(self.timeout)
-        
         print("Caso queira sair do sistema, digite x.")
         print("Se quiser testar a vazão, digite 1, caso queira testar o ping e perda de pacotes, digite 2: ")
         op = input()
-        
+
         while op!='x':
             if op == '1':
                 self.envio_udp()
@@ -27,15 +26,18 @@ class Cliente:
                 self.pacotes_tcp()
             else:
                 print("Opção inválida. Escolha outra opção.")
-            
+
             print("Caso queira sair do sistema, digite x.")
             print("Se quiser testar a vazão, digite 1, caso queira testar o ping e perda de pacotes, digite 2: ")
             op = input()
 
     def envio_udp(self):
+        self.sockUDP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sockUDP.connect((self.ip, self.portaUDP))
+
         input("Digite \"enter\" para testar a vazão.")
-        path = 'sentArchive.txt'
-        arq = open(path, 'rb')
+        pathTo = 'sentArchive.txt'
+        arq = open(pathTo, 'rb')
         l = arq.read(1024)
 
         initial_time = time.time()
@@ -48,65 +50,68 @@ class Cliente:
         elapsed_time = final_time - initial_time
 
         print("\nA vazão obtida foi de: " +
-         str(round(os.path.getsize(path)/(elapsed_time*1024*1024),2))
+         str(round(os.path.getsize(pathTo)/(elapsed_time*1024*1024),2))
          + " Mbps\n")
 
         arq.close()
 
     def pacotes_tcp(self):
+        self.sockTCP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sockTCP.settimeout(self.timeout)
         input("Digite \"enter\" para pingar.")
+
         self.qnt_pacotes_retornados = 0
         self.qnt_pacotes_perdidos = 0
-        self.somatorio_rtt = 0
-        self.somatorio_vazao = 0
+        self.lista_rtts = []
 
-        for i in range(self.qnt_pacotes):
+        for id in range(self.qnt_pacotes):
+
             tempo_inicial = time.time()
-            self.sockTCP.sendto(bytearray("Testando ping", "UTF-8"), (self.ip, self.portaTCP))
-
+            self.sockTCP.sendto(str(id).encode(), (self.ip, self.portaTCP))
             try:
-                self.sockTCP.recvfrom(1024)
-                print("Pacote " + str(i + 1) + " retornado!")
-                self.qnt_pacotes_retornados += 1
+                id_incorrespondente = True
+                while id_incorrespondente:
+                    mensagem, endereco = self.sockTCP.recvfrom(1024)
+                    id_recebido = int(mensagem.decode())
+                    if id_recebido == id:
+                        tempo_final = time.time()
+                        intervalo_de_tempo = tempo_final - tempo_inicial
+                        self.lista_rtts.append(intervalo_de_tempo)
+                        # O valor eh mostrado em milisegundos
+                        print("Pacote", str(id + 1), "retornou em",\
+                        round(intervalo_de_tempo * 1000, 2), "ms.")
+                        self.qnt_pacotes_retornados += 1
+                        id_incorrespondente = False
 
-                tempo_final = time.time()
-                intervalo_de_tempo = tempo_final - tempo_inicial
-                #O intervalo de tempo passa a ser em microsegundos
-                intervalo_de_tempo = intervalo_de_tempo/1000
-                print("RTT: " + str(int(intervalo_de_tempo)) + " microsegundos.\n")
-
-                self.contabilizar_rtt(intervalo_de_tempo)
-                self.contabilizar_vazao(intervalo_de_tempo)
             except socket.timeout:
-                print("Pacote " + str(i + 1) + " perdido!\n")
+                print("Pacote", str(id + 1), "perdido!")
                 self.qnt_pacotes_perdidos += 1
 
         self.gerar_relatorio()
+        self.sockTCP.close()
 
-    def contabilizar_rtt(self, intervalo_de_tempo):
-        self.somatorio_rtt += intervalo_de_tempo
+    def calcular_rtt_medio(self):
+        if self.qnt_pacotes_retornados != 0:
+            somatorio_rtts = 0
+            for tempo in self.lista_rtts:
+                somatorio_rtts += tempo
+            rtt_medio = somatorio_rtts / self.qnt_pacotes_retornados
+        else:
+            rtt_medio = 0
+        # O valor eh mostrado em milisegundos
+        print("RTT medio:", round(rtt_medio * 1000, 2), "ms")
+        return rtt_medio
 
-    def contabilizar_vazao(self, intervalo_de_tempo):
-        #Conversao de microsegundos para segundos
-        intervalo_de_tempo = intervalo_de_tempo/1000000
-        #Calculo da vazao
-        vazao = 1024/intervalo_de_tempo
-        #Conversao de B/s para MB/s
-        vazao = vazao/1048576
-        #Contabiliza a vazao
-        self.somatorio_vazao += vazao
+    def calcular_taxa_perda(self):
+        proporcao_perda = self.qnt_pacotes_perdidos / self.qnt_pacotes
+        percentual_perda = proporcao_perda * 100
+        percentual_perda = round(percentual_perda, 2)
+        print("Taxa de perda:", percentual_perda, "%")
 
     def gerar_relatorio(self):
-        #Verificacao necessaria para evitar divisao por zero
-        if self.qnt_pacotes_retornados != 0:
-            rtt_medio = self.somatorio_rtt / self.qnt_pacotes_retornados
-            print("RTT medio: " + str(int(rtt_medio)) + " microsegundos.")
-            vazao_media = self.somatorio_vazao / self.qnt_pacotes_retornados
-            print("Vazao: " + str(round(vazao_media, 2)) + " MB/s.")
-        else:
-            print("Nenhum pacote voltou!")
-        proporcao_perda = self.qnt_pacotes_perdidos / self.qnt_pacotes
-        percentual_perda = round(proporcao_perda * 100, 2)
-        print("Taxa de perda: " + str(percentual_perda) + "%\n")
+        print("---------------------------------------------------------------")
+        rtt_medio = self.calcular_rtt_medio()
+        self.calcular_taxa_perda()
+        print()
 
 Cliente()

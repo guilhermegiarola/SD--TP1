@@ -1,5 +1,6 @@
 import socket
 import time
+from random import random
 
 ip = ""
 porta = 7000
@@ -11,6 +12,8 @@ sock.bind((ip, porta))
 while True:
 	mensagem, endereco = sock.recvfrom(1024)
 	mensagens_recebidas += 1
-	time.sleep(0.7)
 	print("Quantidade de mensagens recebidas: " + str(mensagens_recebidas))
-	sock.sendto(bytearray("Resposta ao teste", "UTF-8"), (endereco))
+
+	time.sleep(random())
+
+	sock.sendto(mensagem, (endereco))
