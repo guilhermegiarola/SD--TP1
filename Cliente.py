@@ -6,7 +6,7 @@ import os
 class Cliente:
     ip = "127.0.0.1"
     portaTCP = 7000
-    portaUDP = 7002
+    portaUDP = 7003
     timeout = 0.7 #Segundos
     qnt_pacotes = 10
     qnt_pacotes_retornados = 0
