@@ -4,9 +4,9 @@ import datetime
 import os
 
 class Cliente:
-    ip = "127.0.0.1"
-    portaTCP = 7000
-    portaUDP = 7003
+    ip = "192.168.103.20"
+    portaTCP = 7004
+    portaUDP = 7000
     timeout = 0.7 #Segundos
     qnt_pacotes = 10
     qnt_pacotes_retornados = 0
@@ -21,9 +21,9 @@ class Cliente:
 
         while op!='x':
             if op == '1':
-                self.envio_udp()
+                self.envio_tcp()
             elif op == '2':
-                self.pacotes_tcp()
+                self.pacotes_udp()
             else:
                 print("Opção inválida. Escolha outra opção.")
 
@@ -31,9 +31,9 @@ class Cliente:
             print("Se quiser testar a vazão, digite 1, caso queira testar o ping e perda de pacotes, digite 2: ")
             op = input()
 
-    def envio_udp(self):
-        self.sockUDP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sockUDP.connect((self.ip, self.portaUDP))
+    def envio_tcp(self):
+        self.sockTCP = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sockTCP.connect((self.ip, self.portaTCP))
 
         input("Digite \"enter\" para testar a vazão.")
         pathTo = 'sentArchive.txt'
@@ -43,21 +43,21 @@ class Cliente:
         initial_time = time.time()
 
         while(l):
-            self.sockUDP.send(l)
+            self.sockTCP.send(l)
             l = arq.read(1024)
 
         final_time = time.time()
         elapsed_time = final_time - initial_time
 
         print("\nA vazão obtida foi de: " +
-         str(round(os.path.getsize(pathTo)/(elapsed_time*1024*1024),2))
+         str(round(os.path.getsize(pathTo)*8/(elapsed_time*1024*1024),2))
          + " Mbps\n")
 
         arq.close()
 
-    def pacotes_tcp(self):
-        self.sockTCP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.sockTCP.settimeout(self.timeout)
+    def pacotes_udp(self):
+        self.sockUDP = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sockUDP.settimeout(self.timeout)
         input("Digite \"enter\" para pingar.")
 
         self.qnt_pacotes_retornados = 0
@@ -67,11 +67,11 @@ class Cliente:
         for id in range(self.qnt_pacotes):
 
             tempo_inicial = time.time()
-            self.sockTCP.sendto(str(id).encode(), (self.ip, self.portaTCP))
+            self.sockUDP.sendto(str(id).encode(), (self.ip, self.portaUDP))
             try:
                 id_incorrespondente = True
                 while id_incorrespondente:
-                    mensagem, endereco = self.sockTCP.recvfrom(1024)
+                    mensagem, endereco = self.sockUDP.recvfrom(1024)
                     id_recebido = int(mensagem.decode())
                     if id_recebido == id:
                         tempo_final = time.time()
@@ -88,7 +88,7 @@ class Cliente:
                 self.qnt_pacotes_perdidos += 1
 
         self.gerar_relatorio()
-        self.sockTCP.close()
+        self.sockUDP.close()
 
     def calcular_rtt_medio(self):
         if self.qnt_pacotes_retornados != 0:

@@ -3,7 +3,7 @@ from threading import Thread
 
 
 HOST = ''              # Endereco IP do Servidor
-PORT = 7004            # Porta que o Servidor esta
+PORT = 7001            # Porta que o Servidor esta
 
 tcp = socket(AF_INET, SOCK_STREAM)
 orig = (HOST, PORT)
@@ -15,8 +15,8 @@ def acceptIncomingConnections():
         Thread(target=handleClient, args=(connection,)).start()
 
 def handleClient(con):
-        while True:
-            arq = open('receivedArchive.tar.gz','wb')
+	arq = open('receivedArchive.txt','wb')        
+	while True:
             msg = con.recv(1024)
             arq.write(msg)
             if not msg: break
